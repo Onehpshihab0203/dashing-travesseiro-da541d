@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>SpaceSkribble – NASA Sky Challenge</title>
+  <meta name="description" content="Draw planets, galaxies and meteor showers with friends, guess each other's sketches, and learn real NASA astronomy facts after every round." />
+  <meta name="theme-color" content="#060818" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪐</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <canvas id="starfield" aria-hidden="true"></canvas>
+
+  <!-- ═════════════════════════════ HOME ═════════════════════════════ -->
+  <section id="screen-home" class="screen active">
+    <header class="hero" data-bg="/assets/img/night-scene.jpg">
+      <nav class="topnav">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true"><span class="ring"></span></span>
+          <span>SpaceSkribble</span>
+        </a>
+        <div class="topnav-links">
+          <a href="#objects">Objects</a>
+          <a href="#gravity">Gravity Lab</a>
+          <a href="#distances">Distances</a>
+          <button class="link-btn" data-open="modal-howto">How to Play</button>
+        </div>
+      </nav>
+
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="pulse"></span> NASA Sky Challenge</p>
+          <h1>Draw the <em>cosmos</em>.<br />Guess the sky.</h1>
+          <p class="lede">A multiplayer drawing game for space explorers. Sketch Saturn, the Orion Nebula or the ISS while your crew races to guess — then unlock a real NASA fact card every round.</p>
+          <ul class="hero-stats">
+            <li><strong id="stat-objects">20</strong><span>space objects</span></li>
+            <li><strong>60s</strong><span>per drawing</span></li>
+            <li><strong>9.8</strong><span>m/s² on Earth</span></li>
+          </ul>
+        </div>
+
+        <form class="join-card glass" id="join-form" autocomplete="off">
+          <h2>Launch a mission</h2>
+          <label class="field">
+            <span>Your astronaut name</span>
+            <input id="name-input" maxlength="16" placeholder="e.g. Captain Nova" required />
+          </label>
+          <div class="field">
+            <span>Pick your avatar</span>
+            <div class="avatar-picker" id="avatar-picker" role="radiogroup" aria-label="Avatar"></div>
+          </div>
+          <button type="button" class="btn btn-primary btn-lg" id="create-btn">
+            <span aria-hidden="true">🚀</span> Create Room
+          </button>
+          <div class="or"><span>or join with a code</span></div>
+          <div class="join-row">
+            <input id="code-input" maxlength="5" placeholder="ROOM CODE" aria-label="Room code" />
+            <button type="button" class="btn btn-secondary" id="join-btn">Join Room</button>
+          </div>
+          <p class="mode-pill" id="mode-pill"></p>
+          <button type="button" class="link-btn small" data-open="modal-howto">How to Play →</button>
+        </form>
+      </div>
+    </header>
+
+    <!-- Object gallery -->
+    <section class="section" id="objects">
+      <div class="section-head">
+        <p class="eyebrow">The mission catalogue</p>
+        <h2>Real NASA photos. <em>Your</em> sketches.</h2>
+        <p>Every round the drawer picks one of these objects. When time runs out, everyone learns how to spot it in the real sky.</p>
+      </div>
+      <div class="filter-row" id="filter-row"></div>
+      <div class="object-grid" id="object-grid"></div>
+    </section>
+
+    <!-- Gravity lab -->
+    <section class="section lab" id="gravity">
+      <div class="section-head">
+        <p class="eyebrow">Gravity Lab · 9.8 m/s²</p>
+        <h2>Drop a ball on every world</h2>
+        <p>On Earth, falling objects speed up by about <strong>9.8 m/s every second</strong>. Hit drop and watch the same ball fall on the Moon, Mars, Jupiter and even the Sun — in real time.</p>
+      </div>
+      <div class="lab-grid">
+        <div class="glass lab-stage">
+          <canvas id="gravity-canvas" width="960" height="460" aria-label="Ball drop simulation"></canvas>
+        </div>
+        <div class="glass lab-controls">
+          <label class="field">
+            <span>Drop height: <strong id="height-val">20</strong> m</span>
+            <input type="range" id="height-range" min="5" max="60" value="20" />
+          </label>
+          <label class="field">
+            <span>Your mass: <strong id="mass-val">40</strong> kg</span>
+            <input type="range" id="mass-range" min="10" max="120" value="40" />
+          </label>
+          <button class="btn btn-primary" id="drop-btn">⬇ Drop the balls</button>
+          <table class="lab-table" id="lab-table">
+            <thead><tr><th>World</th><th>g (m/s²)</th><th>Fall time</th><th>You'd feel like</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <p class="fineprint">Fall time t = √(2h / g), ignoring air. “Feel like” compares the pull on your body to Earth’s.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Distances -->
+    <section class="section" id="distances">
+      <div class="section-head">
+        <p class="eyebrow">Cosmic distance ladder</p>
+        <h2>How far is <em>far</em>?</h2>
+        <p>From the ISS 400 km overhead to the Andromeda Galaxy 2.5 million light-years away. Each bar uses a logarithmic scale — every step is 10× farther.</p>
+      </div>
+      <div class="unit-toggle" id="unit-toggle" role="tablist">
+        <button class="active" data-unit="km">Kilometres</button>
+        <button data-unit="light">Light travel time</button>
+        <button data-unit="car">Road trip at 100 km/h</button>
+      </div>
+      <ol class="ladder glass" id="ladder"></ol>
+    </section>
+
+    <!-- Explorers -->
+    <section class="section explorers">
+      <div class="explorer-card" data-bg="/assets/img/thorpe-cliff.jpg">
+        <div class="explorer-text">
+          <p class="eyebrow">Real explorers</p>
+          <h3>Scientists practise for other worlds right here on Earth</h3>
+          <p>NASA researchers study ancient rocks on rugged coastlines to learn how to read the history of Mars. Every drawing you make trains the same skill: noticing shapes, colors and patterns.</p>
+        </div>
+      </div>
+      <div class="explorer-card" data-bg="/assets/img/cassini-launch.jpg">
+        <div class="explorer-text">
+          <p class="eyebrow">Mission to Saturn</p>
+          <h3>Cassini launched in 1997 and orbited Saturn for 13 years</h3>
+          <p>Many Saturn photos in this game come from Cassini and the Voyager probes — so every Saturn round shows you a different real picture.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p><strong>SpaceSkribble – NASA Sky Challenge</strong> is an independent educational game and is not affiliated with or endorsed by NASA.</p>
+      <p>Facts adapted from <a href="https://science.nasa.gov/" target="_blank" rel="noopener">science.nasa.gov</a>. Images: NASA, JPL-Caltech, ESA, Space Science Institute and Wikimedia Commons contributors (credited on each card). Sky tips describe typical yearly patterns, not live visibility.</p>
+      <p><a href="/showcase.html">iOS app showcase →</a></p>
+    </footer>
+  </section>
+
+  <!-- ═════════════════════════════ LOBBY ═════════════════════════════ -->
+  <section id="screen-lobby" class="screen">
+    <div class="lobby-wrap">
+      <div class="lobby-head">
+        <button class="btn btn-ghost" data-action="leave">← Leave</button>
+        <div class="room-code-box">
+          <span>Room code</span>
+          <strong id="lobby-code">-----</strong>
+          <button class="btn btn-ghost small" id="copy-link">Copy invite link</button>
+        </div>
+        <span class="mode-pill" id="lobby-mode"></span>
+      </div>
+
+      <div class="lobby-grid">
+        <div class="glass lobby-players">
+          <h2>Crew <span id="lobby-count" class="count"></span></h2>
+          <ul id="lobby-list" class="crew-list"></ul>
+          <div class="lobby-actions">
+            <button class="btn btn-secondary" id="ready-btn">I'm ready</button>
+            <button class="btn btn-ghost host-only" id="addbot-btn">🤖 Add Space Bot</button>
+          </div>
+        </div>
+        <div class="glass lobby-side">
+          <h2>Mission settings</h2>
+          <label class="field">
+            <span>Rounds (everyone draws once per round)</span>
+            <select id="set-rounds"><option value="1">1 round</option><option value="2">2 rounds</option><option value="3">3 rounds</option></select>
+          </label>
+          <label class="field">
+            <span>Drawing time</span>
+            <select id="set-time"><option value="45">45 seconds</option><option value="60" selected>60 seconds</option><option value="90">90 seconds</option></select>
+          </label>
+          <button class="btn btn-primary btn-lg host-only" id="start-btn">Start Game</button>
+          <p class="waiting guest-only">Waiting for the host to start the mission…</p>
+          <div class="tip" id="lobby-tip"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════ GAME ═════════════════════════════ -->
+  <section id="screen-game" class="screen">
+    <div class="game">
+      <header class="game-bar glass">
+        <div class="timer" id="timer">
+          <svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="19" class="track" /><circle cx="22" cy="22" r="19" class="bar" id="timer-bar" /></svg>
+          <span id="timer-text">60</span>
+        </div>
+        <div class="round-info">
+          <span id="round-text">Round 1 / 1</span>
+          <small id="drawer-text">Waiting…</small>
+        </div>
+        <div class="word" id="word-box" aria-live="polite"></div>
+        <div class="bar-actions">
+          <button class="icon-btn" id="mute-btn" title="Sound on/off" aria-label="Toggle sound">🔊</button>
+          <button class="icon-btn" data-open="modal-howto" title="How to play" aria-label="How to play">?</button>
+          <button class="icon-btn" data-action="leave" title="Leave" aria-label="Leave room">⎋</button>
+        </div>
+      </header>
+
+      <aside class="players-panel glass">
+        <h3>Crew</h3>
+        <ul id="game-players" class="score-list"></ul>
+      </aside>
+
+      <main class="board">
+        <div class="canvas-wrap" id="canvas-wrap">
+          <canvas id="board" width="1200" height="900" aria-label="Drawing canvas"></canvas>
+          <div class="canvas-badge" id="canvas-badge"></div>
+
+          <!-- choose object -->
+          <div class="overlay" id="choose-overlay" hidden>
+            <div class="overlay-card">
+              <p class="eyebrow">Your turn to draw</p>
+              <h2>Choose a space object</h2>
+              <div class="choices" id="choices"></div>
+              <p class="fineprint">Auto-picks in a few seconds.</p>
+            </div>
+          </div>
+
+          <!-- waiting -->
+          <div class="overlay soft" id="wait-overlay" hidden>
+            <div class="overlay-card small"><div class="orbit-loader"><span></span></div><p id="wait-text">Waiting…</p></div>
+          </div>
+
+          <!-- NASA card -->
+          <div class="overlay" id="reveal-overlay" hidden>
+            <article class="nasa-card" id="nasa-card"></article>
+          </div>
+        </div>
+
+        <div class="toolbar glass" id="toolbar">
+          <div class="tool-group colors" id="colors"></div>
+          <div class="tool-group sizes" id="sizes"></div>
+          <div class="tool-group">
+            <button class="tool active" data-tool="brush" title="Brush (B)" aria-label="Brush">🖌️</button>
+            <button class="tool" data-tool="eraser" title="Eraser (E)" aria-label="Eraser">🧽</button>
+            <button class="tool" id="undo-btn" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
+            <button class="tool danger" id="clear-btn" title="Clear canvas" aria-label="Clear canvas">🗑️</button>
+          </div>
+        </div>
+        <div class="reference glass" id="reference" hidden></div>
+      </main>
+
+      <aside class="chat-panel glass">
+        <div class="clues" id="clues"></div>
+        <h3>Guesses &amp; chat</h3>
+        <ol class="chat" id="chat" aria-live="polite"></ol>
+        <form class="chat-form" id="chat-form" autocomplete="off">
+          <input id="chat-input" maxlength="80" placeholder="Type your guess…" aria-label="Guess" />
+          <button class="btn btn-primary" type="submit">Send</button>
+        </form>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════ GAME OVER ═════════════════════════════ -->
+  <section id="screen-over" class="screen">
+    <canvas id="confetti" aria-hidden="true"></canvas>
+    <div class="over-wrap">
+      <p class="eyebrow">Mission complete</p>
+      <h1 id="winner-title">Winner!</h1>
+      <div class="podium" id="podium"></div>
+      <div class="glass">
+        <table class="board-table">
+          <thead><tr><th>#</th><th>Explorer</th><th>Score</th><th>Correct guesses</th><th>Drawings</th></tr></thead>
+          <tbody id="final-table"></tbody>
+        </table>
+      </div>
+      <div class="over-actions">
+        <button class="btn btn-primary btn-lg" id="again-btn">🔁 Play Again</button>
+        <button class="btn btn-ghost" data-action="leave">Back to home</button>
+      </div>
+      <p class="waiting" id="again-wait" hidden>Waiting for the host to start a new mission…</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════ HOW TO PLAY ═════════════════════════════ -->
+  <dialog class="modal" id="modal-howto">
+    <form method="dialog"><button class="close" aria-label="Close">✕</button></form>
+    <p class="eyebrow">Flight manual</p>
+    <h2>How to play</h2>
+    <ol class="steps">
+      <li><strong>Create or join a room.</strong> Share the 5-letter room code (or invite link) with friends. Playing solo? Add Space Bots in the lobby.</li>
+      <li><strong>Take turns drawing.</strong> The drawer picks one of three secret space objects and has 60 seconds to sketch it. No letters or words!</li>
+      <li><strong>Guess in the chat.</strong> Everyone else types guesses. Correct answers stay hidden from players still guessing.</li>
+      <li><strong>Unlock clues.</strong> As time ticks, mission clues appear: category, a physics fact (like gravity vs. Earth’s 9.8 m/s²), a blurred real NASA image, and letters of the answer.</li>
+      <li><strong>Score points.</strong> Correct guess = <b>+50</b> plus up to <b>+50 speed bonus</b>. The drawer earns <b>+20</b> for every player who guesses.</li>
+      <li><strong>Learn the sky.</strong> After each round a NASA information card explains the object and how to observe it.</li>
+    </ol>
+    <p class="fineprint">Guess spam is blocked: wait a moment between guesses and don't repeat the same guess.</p>
+  </dialog>
+
+  <div class="toast-stack" id="toasts" aria-live="polite"></div>
+
+  <!-- Socket.IO is served by server.js. On static hosting it fails to load and the game uses local mode. -->
+  <script src="/socket.io/socket.io.js" onerror="window.__noSocket = true"></script>
+  <script src="/data/spaceObjects.js"></script>
+  <script src="/engine.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

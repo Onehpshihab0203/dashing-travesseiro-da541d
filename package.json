@@ -1,0 +1,16 @@
+{
+  "name": "spaceskribble",
+  "version": "1.0.0",
+  "description": "SpaceSkribble – NASA Sky Challenge: a multiplayer astronomy drawing & guessing game",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1"
+  }
+}
