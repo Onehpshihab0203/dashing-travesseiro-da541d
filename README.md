@@ -30,8 +30,13 @@ Copy an entry in `public/data/spaceObjects.js` and change these fields:
 
 Put image files in `public/assets/img/`.
 
-## Connecting NASA data later
-Fetch from NASA APIs (APOD, NASA Image Library, the Horizons ephemeris) in a server route or Netlify Function. Merge the results into the object list. Only show live visibility claims if they come from a real ephemeris source.
+## Live NASA imagery
+The home page includes a live photo explorer powered by the official NASA Image and Video Library search API (`images-api.nasa.gov`). Visitors can search NASA images, use the topic shortcuts, and page through results. Opening an object card or finishing a game round also looks for a matching NASA image; the result is cached for that session.
+
+This image search endpoint is public and supports browser requests, so no NASA API key, backend, or Netlify Function is required. Each live result links to its NASA record and shows the creator/center and date when NASA provides them. The explorer filters out records explicitly identified as illustrations, artist concepts, renderings, simulations, diagrams, or graphics. NASA metadata is not perfectly consistent, so an item without a clear non-photographic label may still appear. If NASA or the network is unavailable, the game and its saved reference images continue to work.
+
+## Deploy to Netlify
+The site is static and `netlify.toml` sets the publish directory to `public`. Import the GitHub repository into Netlify, leave the build command empty, and use `public` as the publish directory. No environment variables or API credentials are needed for the NASA image explorer.
 
 ## Roadmap
 - Host Socket.IO on a persistent Node host so the deployed site supports multiplayer across devices.

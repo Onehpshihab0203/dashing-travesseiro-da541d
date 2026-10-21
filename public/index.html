@@ -25,6 +25,7 @@
         </a>
         <div class="topnav-links">
           <a href="#objects">Objects</a>
+          <a href="#nasa-gallery">NASA photos</a>
           <a href="#gravity">Gravity Lab</a>
           <a href="#distances">Distances</a>
           <button class="link-btn" data-open="modal-howto">How to Play</button>
@@ -71,11 +72,34 @@
     <section class="section" id="objects">
       <div class="section-head">
         <p class="eyebrow">The mission catalogue</p>
-        <h2>Real NASA photos. <em>Your</em> sketches.</h2>
-        <p>Every round the drawer picks one of these objects. When time runs out, everyone learns how to spot it in the real sky.</p>
+        <h2>Draw real space objects. Explore <em>NASA images</em>.</h2>
+        <p>Every round the drawer picks one of these objects. Browse the live NASA image library below for real mission photographs, with source credits on every image.</p>
       </div>
       <div class="filter-row" id="filter-row"></div>
       <div class="object-grid" id="object-grid"></div>
+    </section>
+
+    <!-- Live NASA Image and Video Library search -->
+    <section class="section nasa-gallery" id="nasa-gallery">
+      <div class="section-head">
+        <p class="eyebrow">Official NASA imagery · Live results</p>
+        <h2>Explore the <em>NASA photo</em> library</h2>
+        <p>Search photographs from NASA’s Image and Video Library. Results load from NASA when you search; each card links to its NASA record and shows the available photographer and date.</p>
+      </div>
+      <form class="nasa-search" id="nasa-search-form" role="search">
+        <label class="sr-only" for="nasa-search-input">Search NASA photographs</label>
+        <input id="nasa-search-input" type="search" minlength="2" maxlength="80" value="solar system planets" placeholder="Try “Saturn”, “Earth from space” or “Webb galaxies”" autocomplete="off" />
+        <button class="btn btn-primary" type="submit" id="nasa-search-button">Search NASA</button>
+      </form>
+      <div class="filter-row nasa-topics" id="nasa-topic-row" aria-label="Popular NASA image searches"></div>
+      <p class="nasa-gallery-status" id="nasa-gallery-status" role="status" aria-live="polite">Connecting to NASA’s image library…</p>
+      <div class="nasa-image-grid" id="nasa-image-grid" aria-busy="true"></div>
+      <div class="nasa-gallery-pager">
+        <button class="btn btn-ghost small" type="button" id="nasa-prev-page" disabled>← Previous</button>
+        <span id="nasa-page-label">Page 1</span>
+        <button class="btn btn-ghost small" type="button" id="nasa-next-page" disabled>Next →</button>
+      </div>
+      <p class="fineprint nasa-gallery-source">Live results: <a href="https://images.nasa.gov/" target="_blank" rel="noopener">NASA Image and Video Library</a>. For curated science stories, visit <a href="https://science.nasa.gov/gallery/" target="_blank" rel="noopener">NASA Science galleries</a>. NASA’s library can also include illustrations or visualizations; clearly identified non-photographic items are filtered from these results.</p>
     </section>
 
     <!-- Gravity lab -->
@@ -143,7 +167,7 @@
 
     <footer class="footer">
       <p><strong>SpaceSkribble – NASA Sky Challenge</strong> is an independent educational game and is not affiliated with or endorsed by NASA.</p>
-      <p>Facts adapted from <a href="https://science.nasa.gov/" target="_blank" rel="noopener">science.nasa.gov</a>. Images: NASA, JPL-Caltech, ESA, Space Science Institute and Wikimedia Commons contributors (credited on each card). Sky tips describe typical yearly patterns, not live visibility.</p>
+      <p>Facts adapted from <a href="https://science.nasa.gov/" target="_blank" rel="noopener">science.nasa.gov</a>. The live photo explorer uses the <a href="https://images.nasa.gov/" target="_blank" rel="noopener">NASA Image and Video Library</a> and credits each result. Existing game reference images retain their individual source credits. Sky tips describe typical yearly patterns, not live visibility.</p>
       <p><a href="/showcase.html">iOS app showcase →</a></p>
     </footer>
   </section>
