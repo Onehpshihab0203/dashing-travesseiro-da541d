@@ -421,11 +421,261 @@
     const b = e.target.closest('[data-id]');
     if (!b) return;
     const o = SPACE_OBJECTS.find((x) => x.id === b.dataset.id);
+    const imageRequest = rid();
+    objectModal.dataset.liveImageRequest = imageRequest;
+    objectModal.dataset.objectId = o.id;
     objectModal.innerHTML = `<button class="close" aria-label="Close">✕</button>` + nasaCardHTML(o, pickImage(o));
     objectModal.showModal();
+    loadNasaObjectPhoto(o).then((photo) => {
+      if (photo && objectModal.open && objectModal.dataset.liveImageRequest === imageRequest) {
+        updateNasaCardPhoto(objectModal, o, photo);
+      }
+    });
   });
   const pickImage = (o) => o.images[Math.floor(Math.random() * o.images.length)];
   renderCatalogue();
+
+  // ── live NASA Image and Video Library ──
+  const NASA_SEARCH_URL = 'https://images-api.nasa.gov/search';
+  const NASA_PAGE_SIZE = 12;
+  const NASA_TOPICS = [
+    { label: 'Solar System', query: 'solar system planets' },
+    { label: 'Earth', query: 'Earth from space' },
+    { label: 'Moon', query: 'Moon surface NASA' },
+    { label: 'Mars', query: 'Mars rover NASA' },
+    { label: 'Webb', query: 'James Webb Space Telescope galaxies' },
+    { label: 'Nebulae', query: 'nebula NASA Hubble' },
+    { label: 'Space Station', query: 'International Space Station Earth' },
+  ];
+  const nasaGallery = { query: 'solar system planets', page: 1, total: 0, hasMore: false, requestId: 0, controller: null, cache: new Map() };
+  const NASA_NON_PHOTO = /\b(artist(?:['’]s)? concept(?:ion)?|artist(?:['’]s)? impression|artist(?:['’]s)? rendition|illustration|rendering|simulation|visualization|diagram|infographic|graphic)\b/i;
+
+  function nasaGalleryTopics() {
+    $('#nasa-topic-row').innerHTML = NASA_TOPICS.map((topic) =>
+      `<button class="chip ${topic.query === nasaGallery.query ? 'active' : ''}" type="button" data-nasa-query="${esc(topic.query)}">${esc(topic.label)}</button>`
+    ).join('');
+  }
+
+  function normalizeNasaItem(item) {
+    const data = item && Array.isArray(item.data) ? item.data[0] : null;
+    if (!data || data.media_type !== 'image' || !data.nasa_id) return null;
+    const searchableText = `${data.title || ''} ${data.description || ''} ${data.keywords || ''}`;
+    if (NASA_NON_PHOTO.test(searchableText)) return null;
+    const preview = (item.links || []).find((link) => link.rel === 'preview' && link.href);
+    if (!preview) return null;
+
+    let previewUrl;
+    try {
+      previewUrl = new URL(preview.href);
+      if (previewUrl.protocol !== 'https:' || !previewUrl.hostname.endsWith('.nasa.gov')) return null;
+    } catch (_) {
+      return null;
+    }
+
+    const creator = data.photographer || data.secondary_creator || data.center || 'NASA';
+    const created = String(data.date_created || '').slice(0, 10);
+    return {
+      id: data.nasa_id,
+      title: data.title || 'Untitled NASA image',
+      imageUrl: previewUrl.href,
+      detailUrl: `https://images.nasa.gov/details/${encodeURIComponent(data.nasa_id)}`,
+      credit: `NASA · ${creator}`,
+      date: /^\d{4}-\d{2}-\d{2}$/.test(created) ? created : '',
+    };
+  }
+
+  const nasaObjectPhotoCache = new Map();
+  function loadNasaObjectPhoto(object) {
+    if (nasaObjectPhotoCache.has(object.id)) return nasaObjectPhotoCache.get(object.id);
+    const request = (async () => {
+      const url = new URL(NASA_SEARCH_URL);
+      url.search = new URLSearchParams({
+        q: object.name,
+        media_type: 'image',
+        page_size: String(NASA_PAGE_SIZE),
+        page: '1',
+      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      try {
+        const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+        if (!response.ok) return null;
+        const payload = await response.json();
+        const items = payload && payload.collection && Array.isArray(payload.collection.items)
+          ? payload.collection.items.map(normalizeNasaItem).filter(Boolean)
+          : [];
+        return items[0] || null;
+      } finally {
+        clearTimeout(timeout);
+      }
+    })().catch((error) => {
+      console.warn(`NASA photo lookup failed for ${object.name}:`, error);
+      return null;
+    });
+    nasaObjectPhotoCache.set(object.id, request);
+    return request;
+  }
+
+  function updateNasaCardPhoto(container, object, photo) {
+    const image = container.querySelector('.nasa-media img');
+    if (!image) return;
+    const fallbackSrc = image.dataset.fallbackSrc || image.src;
+    const credit = container.querySelector('.nasa-media .credit');
+    const fallbackCredit = credit && (credit.dataset.fallbackCredit || credit.textContent);
+    image.dataset.fallbackSrc = fallbackSrc;
+    image.onerror = () => {
+      image.onerror = null;
+      image.src = fallbackSrc;
+      if (credit && fallbackCredit) credit.textContent = fallbackCredit;
+    };
+    image.src = photo.imageUrl;
+    image.alt = `${object.name} — NASA image`;
+    if (credit) {
+      credit.dataset.fallbackCredit = fallbackCredit || '';
+      credit.textContent = `📷 ${photo.credit} · NASA Image and Video Library`;
+    }
+  }
+
+  function renderNasaImages(items) {
+    const grid = $('#nasa-image-grid');
+    if (!items.length) {
+      grid.innerHTML = '<p class="fineprint">NASA did not return any photograph matches for this page. Try a broader search or another topic.</p>';
+      return;
+    }
+    grid.innerHTML = items.map((image) => `
+      <article class="nasa-photo-card">
+        <a class="nasa-photo-visual" href="${esc(image.detailUrl)}" target="_blank" rel="noopener" aria-label="Open ${esc(image.title)} in NASA’s library">
+          <img src="${esc(image.imageUrl)}" alt="${esc(image.title)}" loading="lazy" decoding="async" onerror="this.remove()" />
+          <span class="nasa-photo-credit">📷 ${esc(image.credit)}</span>
+        </a>
+        <div class="nasa-photo-body">
+          <strong>${esc(image.title)}</strong>
+          ${image.date ? `<span class="nasa-photo-date">${esc(image.date)}</span>` : ''}
+          <a class="nasa-photo-link" href="${esc(image.detailUrl)}" target="_blank" rel="noopener">View NASA record ↗</a>
+        </div>
+      </article>`).join('');
+  }
+
+  function updateNasaPager() {
+    $('#nasa-page-label').textContent = `Page ${nasaGallery.page}`;
+    $('#nasa-prev-page').disabled = nasaGallery.page <= 1;
+    $('#nasa-next-page').disabled = !nasaGallery.hasMore;
+  }
+
+  async function loadNasaImages() {
+    const status = $('#nasa-gallery-status');
+    const grid = $('#nasa-image-grid');
+    const requestId = ++nasaGallery.requestId;
+    const cacheKey = `${nasaGallery.query.toLowerCase()}|${nasaGallery.page}`;
+    if (nasaGallery.controller) nasaGallery.controller.abort();
+    const controller = new AbortController();
+    nasaGallery.controller = controller;
+    grid.setAttribute('aria-busy', 'true');
+    status.textContent = `Searching NASA for “${nasaGallery.query}”…`;
+    $('#nasa-search-button').disabled = true;
+
+    const cached = nasaGallery.cache.get(cacheKey);
+    if (cached) {
+      nasaGallery.total = cached.total;
+      nasaGallery.hasMore = cached.hasMore;
+      renderNasaImages(cached.items);
+      status.textContent = `${cached.items.length} photographs from NASA’s Image and Video Library.`;
+      grid.setAttribute('aria-busy', 'false');
+      $('#nasa-search-button').disabled = false;
+      updateNasaPager();
+      return;
+    }
+
+    const url = new URL(NASA_SEARCH_URL);
+    url.search = new URLSearchParams({
+      q: nasaGallery.query,
+      media_type: 'image',
+      page_size: String(NASA_PAGE_SIZE),
+      page: String(nasaGallery.page),
+    });
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`NASA image search returned HTTP ${response.status}.`);
+      const payload = await response.json();
+      if (requestId !== nasaGallery.requestId) return;
+      const collection = payload && payload.collection;
+      if (!collection || !Array.isArray(collection.items)) throw new Error('NASA returned an unexpected image response.');
+      const items = collection.items.map(normalizeNasaItem).filter(Boolean);
+      const total = Number(collection.metadata && collection.metadata.total_hits) || 0;
+      const hasMore = total > 0
+        ? nasaGallery.page * NASA_PAGE_SIZE < total
+        : collection.items.length >= NASA_PAGE_SIZE;
+      nasaGallery.total = total;
+      nasaGallery.hasMore = hasMore;
+      nasaGallery.cache.set(cacheKey, { items, total, hasMore });
+      if (nasaGallery.cache.size > 20) nasaGallery.cache.delete(nasaGallery.cache.keys().next().value);
+      renderNasaImages(items);
+      status.textContent = items.length
+        ? `${items.length} photographs from NASA’s Image and Video Library${total ? ` · ${total.toLocaleString()} image results` : ''}.`
+        : 'NASA returned no matching photographs on this page. Try another search or topic.';
+      updateNasaPager();
+    } catch (error) {
+      if (requestId !== nasaGallery.requestId) return;
+      if (error.name === 'AbortError') {
+        status.textContent = 'NASA’s image library took too long to respond. Check your connection and search again.';
+      } else {
+        console.error('NASA image search failed:', error);
+        status.textContent = 'NASA images are temporarily unavailable. The game catalogue still works; try again in a moment.';
+      }
+      grid.innerHTML = '<div class="nasa-photo-card nasa-photo-body"><strong>NASA images unavailable</strong><span class="nasa-photo-date">Your game and saved reference catalogue are still available.</span></div>';
+      nasaGallery.total = 0;
+      nasaGallery.hasMore = false;
+      updateNasaPager();
+    } finally {
+      clearTimeout(timeout);
+      if (requestId === nasaGallery.requestId) {
+        grid.setAttribute('aria-busy', 'false');
+        $('#nasa-search-button').disabled = false;
+      }
+    }
+  }
+
+  function searchNasa(query) {
+    const normalized = String(query || '').trim().slice(0, 80);
+    if (normalized.length < 2) {
+      toast('Enter at least 2 characters to search NASA photos.', 'bad');
+      return;
+    }
+    nasaGallery.query = normalized;
+    nasaGallery.page = 1;
+    nasaGallery.total = 0;
+    nasaGallery.hasMore = false;
+    nasaGalleryTopics();
+    updateNasaPager();
+    loadNasaImages();
+  }
+
+  $('#nasa-search-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    searchNasa($('#nasa-search-input').value);
+  });
+  $('#nasa-topic-row').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-nasa-query]');
+    if (!button) return;
+    $('#nasa-search-input').value = button.dataset.nasaQuery;
+    searchNasa(button.dataset.nasaQuery);
+  });
+  $('#nasa-prev-page').addEventListener('click', () => {
+    if (nasaGallery.page <= 1) return;
+    nasaGallery.page -= 1;
+    updateNasaPager();
+    loadNasaImages();
+  });
+  $('#nasa-next-page').addEventListener('click', () => {
+    if ($('#nasa-next-page').disabled) return;
+    nasaGallery.page += 1;
+    updateNasaPager();
+    loadNasaImages();
+  });
+  nasaGalleryTopics();
+  updateNasaPager();
+  loadNasaImages();
 
   // ── gravity lab: ball drop at 9.8 m/s² and friends ──
   const WORLDS = [
@@ -867,6 +1117,7 @@
       </div>`;
   }
 
+  let liveRevealImageRequest = 0;
   function showReveal(r) {
     const results = r.results.length
       ? r.results.map((x) => `<li><span>${x.avatar} ${esc(x.name)}</span><b>+${x.points}</b></li>`).join('')
@@ -874,10 +1125,20 @@
     const drawerLine = r.drawer ? `<li class="drawer"><span>✏️ ${r.drawer.avatar} ${esc(r.drawer.name)} (drawer)</span><b>+${r.drawer.points}</b></li>` : '';
     const extra = `<div class="round-results"><h4>🏁 Round results</h4><ul>${results}${drawerLine}</ul><div class="next" id="reveal-next">Next drawer soon…</div></div>`;
     $('#nasa-card').innerHTML = nasaCardHTML(r.object, r.image, extra);
+    $('#nasa-card').dataset.objectId = r.object.id;
     $('#nasa-card').scrollTop = 0;
     $('#reveal-overlay').hidden = false;
     $('#wait-overlay').hidden = true;
     $('#choose-overlay').hidden = true;
+    const imageRequest = ++liveRevealImageRequest;
+    loadNasaObjectPhoto(r.object).then((photo) => {
+      if (
+        photo &&
+        imageRequest === liveRevealImageRequest &&
+        !$('#reveal-overlay').hidden &&
+        $('#nasa-card').dataset.objectId === r.object.id
+      ) updateNasaCardPhoto($('#nasa-card'), r.object, photo);
+    });
   }
 
   $('#mute-btn').textContent = Sound.muted ? '🔇' : '🔊';
